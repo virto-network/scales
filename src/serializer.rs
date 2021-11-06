@@ -984,4 +984,66 @@ mod tests {
         assert_eq!(out, expected);
         Ok(())
     }
+
+    #[test]
+    fn test_foo() -> Result<()> {
+        fn to_bytes_from_iter<B, I, K, V>(
+            bytes: B,
+            iter: I,
+            registry_type: (&PortableRegistry, TypeId),
+        ) -> super::Result<()>
+        where
+            B: BufMut,
+            I: IntoIterator<Item = (K, V)>,
+            K: Into<String>,
+            V: Into<crate::JsonValue>,
+        {
+            Ok(())
+        }
+
+        fn to_vec_from_iter<I, K, V>(
+            iter: I,
+            registry_type: (&PortableRegistry, TypeId),
+        ) -> super::Result<Vec<u8>>
+        where
+            I: IntoIterator<Item = (K, V)>,
+            K: Into<String>,
+            V: Into<crate::JsonValue>,
+        {
+            let mut out = vec![];
+            to_bytes_from_iter(&mut out, iter, registry_type)?;
+            Ok(out)
+        }
+
+        #[derive(Debug, Encode, TypeInfo)]
+        enum Bar {
+            _This,
+            That(i16),
+        }
+        #[derive(Debug, Encode, TypeInfo)]
+        struct Foo {
+            bar: Bar,
+            baz: Option<u32>,
+            bam: String,
+        }
+        let foo = Foo {
+            bar: Bar::That(i16::MAX),
+            baz: Some(123),
+            bam: "lorem ipsum".into(),
+        };
+        let (ty, reg) = register(&foo);
+
+        let input = vec![
+            ("bam", crate::JsonValue::String("lol".into())),
+            ("bar", 123.into()),
+            ("bam", "yepyep".into()),
+            ("bar", i16::MAX.into()),
+        ];
+
+        let out = to_vec_from_iter(input, (&reg, ty))?;
+        let expected = foo.encode();
+
+        assert_eq!(out, expected);
+        Ok(())
+    }
 }
