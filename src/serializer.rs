@@ -182,7 +182,8 @@ where
     fn serialize_str(self, v: &str) -> Result<Self::Ok> {
         self.maybe_some()?;
         if let Some(ref mut var @ SpecificType::Variant(_, _, None)) = &mut self.ty {
-            var.pick_mut(to_vec(v)?, |k| to_vec(k.name()).unwrap());
+            var.pick_mut(to_vec(v)?, |k| to_vec(k.name()).unwrap())
+                .ok_or(Error::BadInput("Invalid variant".into()))?;
             self.out.put_u8(var.variant_id());
             return Ok(());
         }
@@ -401,6 +402,7 @@ where
                     let key_data = to_vec(key)?;
                     // assume the key is the name of the variant
                     var.pick_mut(key_data, |v| to_vec(v.name()).unwrap())
+                        .ok_or(Error::BadInput("Invalid variant".into()))?
                         .variant_id()
                         .serialize(&mut **ser)?;
                 }
@@ -575,12 +577,14 @@ where
 #[derive(Debug)]
 pub enum Error {
     Ser(String),
+    BadInput(String),
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::Ser(msg) => write!(f, "{}", msg),
+            Error::BadInput(msg) => write!(f, "Bad Input: {}", msg),
         }
     }
 }
@@ -998,7 +1002,8 @@ mod tests {
             K: Into<String>,
             V: Into<crate::JsonValue>,
         {
-            Ok(())
+            let val = iter.into_iter().collect::<crate::JsonValue>();
+            to_bytes_with_info(bytes, &val, Some(registry_type))
         }
 
         fn to_vec_from_iter<I, K, V>(
