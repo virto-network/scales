@@ -70,9 +70,12 @@ where
     B: BufMut,
 {
     pub fn new(out: B, registry_type: Option<(&'reg PortableRegistry, TypeId)>) -> Self {
-        let (registry, ty) = match registry_type
-            .map(|(reg, ty_id)| (reg, (reg.resolve(ty_id).unwrap(), reg).into()))
-        {
+        let (registry, ty) = match registry_type.map(|(reg, ty_id)| {
+            (
+                reg,
+                (reg.resolve(ty_id).expect("exists in registry"), reg).into(),
+            )
+        }) {
             Some((reg, ty)) => (Some(reg), Some(ty)),
             None => (None, None),
         };
@@ -578,6 +581,7 @@ where
 pub enum Error {
     Ser(String),
     BadInput(String),
+    Type(scale_info::Type<scale_info::form::PortableForm>),
 }
 
 impl fmt::Display for Error {
@@ -585,6 +589,11 @@ impl fmt::Display for Error {
         match self {
             Error::Ser(msg) => write!(f, "{}", msg),
             Error::BadInput(msg) => write!(f, "Bad Input: {}", msg),
+            Error::Type(ty) => write!(
+                f,
+                "Unexpected type: {}",
+                ty.path().ident().unwrap_or("Unknown".into())
+            ),
         }
     }
 }
@@ -1002,7 +1011,28 @@ mod tests {
             K: Into<String>,
             V: Into<crate::JsonValue>,
         {
-            let val = iter.into_iter().collect::<crate::JsonValue>();
+            let ty = registry_type
+                .0
+                .resolve(registry_type.1)
+                .ok_or(Error::BadInput("Type not in registry".into()))?;
+            let obj = iter.into_iter().collect::<crate::JsonValue>();
+            let val: crate::JsonValue = if let scale_info::TypeDef::Composite(ty) = ty.type_def() {
+                ty.fields()
+                    .iter()
+                    .map(|f| {
+                        let name = f.name().expect("named field");
+                        Ok((
+                            name,
+                            obj.get(name)
+                                .ok_or_else(|| Error::BadInput(format!("missing field {}", name)))?
+                                .clone(),
+                        ))
+                    })
+                    .collect::<Result<_>>()?
+            } else {
+                return Err(Error::Type(ty.clone()));
+            };
+
             to_bytes_with_info(bytes, &val, Some(registry_type))
         }
 
@@ -1040,8 +1070,8 @@ mod tests {
 
         let input = vec![
             ("bam", crate::JsonValue::String("lol".into())),
-            ("bar", 123.into()),
-            ("bam", "yepyep".into()),
+            ("baz", 123.into()),
+            ("bam", "lorem ipsum".into()),
             ("bar", i16::MAX.into()),
         ];
 
