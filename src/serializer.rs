@@ -352,11 +352,11 @@ where
             Some(SpecificType::StructNewType(ty)) => match self.resolve(ty) {
                 // { "foo": "bar" } => "bar" might be a string wrapped in a type
                 SpecificType::Str => Ok(None),
-                _ => todo!(),
+                _ => Err(Error::NotSupported),
             },
             Some(ref ty) => {
                 println!("{:?}", ty);
-                todo!()
+                Err(Error::NotSupported)
             }
         }
     }
@@ -603,6 +603,7 @@ pub enum Error {
     Ser(String),
     BadInput(String),
     Type(scale_info::Type<scale_info::form::PortableForm>),
+    NotSupported,
 }
 
 impl fmt::Display for Error {
