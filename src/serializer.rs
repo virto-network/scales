@@ -342,6 +342,7 @@ where
     fn maybe_other(&mut self, val: &str) -> Result<Option<()>> {
         match self.ty {
             Some(SpecificType::Str) | None => Ok(None),
+            // { "foo": "Bar" } => "Bar" might be an enum variant
             Some(ref mut var @ SpecificType::Variant(_, _, None)) => {
                 var.pick_mut(to_vec(val)?, |k| to_vec(k.name()).unwrap())
                     .ok_or(Error::BadInput("Invalid variant".into()))?;
@@ -349,6 +350,7 @@ where
                 Ok(Some(()))
             }
             Some(SpecificType::StructNewType(ty)) => match self.resolve(ty) {
+                // { "foo": "bar" } => "bar" might be a string wrapped in a type
                 SpecificType::Str => Ok(None),
                 _ => todo!(),
             },
