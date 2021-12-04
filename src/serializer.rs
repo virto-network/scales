@@ -340,6 +340,7 @@ where
 
     #[inline]
     fn maybe_other(&mut self, val: &str) -> Result<Option<()>> {
+        use core::any::type_name;
         match self.ty {
             Some(SpecificType::Str) | None => Ok(None),
             // { "foo": "Bar" } => "Bar" might be an enum variant
@@ -352,11 +353,11 @@ where
             Some(SpecificType::StructNewType(ty)) => match self.resolve(ty) {
                 // { "foo": "bar" } => "bar" might be a string wrapped in a type
                 SpecificType::Str => Ok(None),
-                _ => Err(Error::NotSupported),
+                _ => Err(Error::NotSupported(type_name::<&str>())),
             },
             Some(ref ty) => {
                 println!("{:?}", ty);
-                Err(Error::NotSupported)
+                Err(Error::NotSupported(type_name::<&str>()))
             }
         }
     }
@@ -603,7 +604,7 @@ pub enum Error {
     Ser(String),
     BadInput(String),
     Type(scale_info::Type<scale_info::form::PortableForm>),
-    NotSupported,
+    NotSupported(&'static str),
 }
 
 impl fmt::Display for Error {
@@ -616,6 +617,7 @@ impl fmt::Display for Error {
                 "Unexpected type: {}",
                 ty.path().ident().unwrap_or("Unknown".into())
             ),
+            Error::NotSupported(from) => write!(f, "Serializing {} as type is not supported", from),
         }
     }
 }
