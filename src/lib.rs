@@ -15,6 +15,8 @@ pub use bytes::Bytes;
 pub use serde_json::Value as JsonValue;
 #[cfg(feature = "experimental-serializer")]
 pub use serializer::{to_bytes, to_bytes_with_info, to_vec, to_vec_with_info, Serializer};
+#[cfg(feature = "json")]
+pub use serializer::{to_bytes_from_iter, to_vec_from_iter};
 pub use value::Value;
 
 use prelude::*;
