@@ -184,12 +184,10 @@ where
 
     fn serialize_str(self, v: &str) -> Result<Self::Ok> {
         self.maybe_some()?;
-        if let Some(ref mut var @ SpecificType::Variant(_, _, None)) = &mut self.ty {
-            var.pick_mut(to_vec(v)?, |k| to_vec(k.name()).unwrap())
-                .ok_or(Error::BadInput("Invalid variant".into()))?;
-            self.out.put_u8(var.variant_id());
+        if self.maybe_other(v)?.is_some() {
             return Ok(());
         }
+
         compact_number(v.len(), &mut self.out);
         self.out.put(v.as_bytes());
         Ok(())
@@ -335,9 +333,30 @@ where
     }
 
     fn resolve(&self, ty_id: TypeId) -> SpecificType {
-        let reg = self.registry.expect("called heving type");
+        let reg = self.registry.expect("called having type");
         let ty = reg.resolve(ty_id).expect("in registry");
         (ty, reg).into()
+    }
+
+    #[inline]
+    fn maybe_other(&mut self, val: &str) -> Result<Option<()>> {
+        match self.ty {
+            Some(SpecificType::Str) | None => Ok(None),
+            Some(ref mut var @ SpecificType::Variant(_, _, None)) => {
+                var.pick_mut(to_vec(val)?, |k| to_vec(k.name()).unwrap())
+                    .ok_or(Error::BadInput("Invalid variant".into()))?;
+                self.out.put_u8(var.variant_id());
+                Ok(Some(()))
+            }
+            Some(SpecificType::StructNewType(ty)) => match self.resolve(ty) {
+                SpecificType::Str => Ok(None),
+                _ => todo!(),
+            },
+            Some(ref ty) => {
+                println!("{:?}", ty);
+                todo!()
+            }
+        }
     }
 }
 
