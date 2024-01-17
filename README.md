@@ -1,3 +1,5 @@
+> ⚠️ SCALES is moving to the [VirtoSDK](https://github.com/virto-network/virto-sdk)
+
 # scales - SCALE Serialization
 
 Making use of [type information](https://github.com/paritytech/scale-info) this library allows 
